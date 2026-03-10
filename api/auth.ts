@@ -12,10 +12,23 @@ function getSecret(): string | undefined {
   return process.env.PROTECTION_PASSWORD?.trim() || undefined;
 }
 
+/** In produzione la password è obbligatoria: se manca, forziamo la login e chiariamo l'errore. */
+function isProduction(): boolean {
+  return process.env.VERCEL_ENV === 'production';
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
-    // Verifica sessione: 200 se ok, 401 se non autenticato
     const secret = getSecret();
+    // In produzione senza password: rispondiamo 503 così il frontend mostra il form e un messaggio chiaro
+    if (isProduction() && !secret) {
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(503).json({
+        error: 'PROTECTION_PASSWORD non configurata',
+        code: 'PASSWORD_NOT_CONFIGURED',
+        message: 'Imposta PROTECTION_PASSWORD in Vercel → Settings → Environment Variables e ridistribuisci.',
+      });
+    }
     if (!secret) {
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({ ok: true, protected: false });
@@ -31,6 +44,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'POST') {
     const secret = getSecret();
+    if (isProduction() && !secret) {
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(503).json({
+        error: 'PROTECTION_PASSWORD non configurata',
+        code: 'PASSWORD_NOT_CONFIGURED',
+        message: 'In Vercel: Settings → Environment Variables → aggiungi PROTECTION_PASSWORD (come Secret) e ridistribuisci.',
+      });
+    }
     if (!secret) {
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({ ok: true });

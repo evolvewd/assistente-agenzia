@@ -2,10 +2,11 @@ import { useState, FormEvent } from 'react';
 import { login } from '../lib/api';
 
 interface LoginScreenProps {
+  configError?: string | null;
   onSuccess: () => void;
 }
 
-export function LoginScreen({ onSuccess }: LoginScreenProps) {
+export function LoginScreen({ configError, onSuccess }: LoginScreenProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,6 +35,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         <div className="login-header">
           <h1>FiloSofia <span>Viaggi</span></h1>
           <p className="login-sub">Inserisci la password per accedere al cruscotto</p>
+          {configError && (
+            <p className="login-config-error" role="alert">
+              {configError}
+            </p>
+          )}
         </div>
         <form onSubmit={handleSubmit} className="login-form">
           <label htmlFor="login-password" className="login-label">

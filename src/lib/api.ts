@@ -10,13 +10,18 @@ const fetchOpts: RequestInit = {
   headers: { 'Content-Type': 'application/json' },
 };
 
-export type AuthStatus = { ok: boolean; protected: boolean };
+export type AuthStatus = { ok: boolean; protected: boolean; configError?: string };
 
 /** Verifica se la sessione è valida. GET /api/auth */
 export async function verifyAuth(): Promise<AuthStatus> {
   const res = await fetch(`${API_BASE}/api/auth`, { method: 'GET', credentials: 'include' });
   if (res.status === 401) {
     return { ok: false, protected: true };
+  }
+  // 503 = password non configurata in prod: mostra comunque il form di login
+  if (res.status === 503) {
+    const data = (await res.json().catch(() => ({}))) as { code?: string; message?: string };
+    return { ok: false, protected: true, configError: data.code === 'PASSWORD_NOT_CONFIGURED' ? (data.message ?? '') : undefined };
   }
   const data = (await res.json().catch(() => ({}))) as { ok?: boolean; protected?: boolean };
   return { ok: data.ok === true, protected: data.protected === true };
@@ -29,9 +34,10 @@ export async function login(password: string): Promise<{ ok: boolean; error?: st
     ...fetchOpts,
     body: JSON.stringify({ password }),
   });
-  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string };
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; message?: string };
   if (res.ok && data.ok) return { ok: true };
-  return { ok: false, error: data.error || 'Accesso non riuscito' };
+  const errorMsg = data.code === 'PASSWORD_NOT_CONFIGURED' ? (data.message ?? data.error) : (data.error || 'Accesso non riuscito');
+  return { ok: false, error: errorMsg };
 }
 
 async function post<T>(path: string, body: object): Promise<T> {

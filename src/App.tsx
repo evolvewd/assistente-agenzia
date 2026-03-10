@@ -35,6 +35,7 @@ function saveSavedWatches(watches: SavedWatch[]) {
 export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const [authConfigError, setAuthConfigError] = useState<string | null>(null);
   const [alertData, setAlertData] = useState<AlertData | null>(null);
   const [aiContent, setAiContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -87,6 +88,7 @@ export default function App() {
     verifyAuth().then((status) => {
       if (cancelled) return;
       setAuthChecked(true);
+      setAuthConfigError(status.configError ?? null);
       setAuthenticated(status.protected ? status.ok : true);
     });
     return () => { cancelled = true; };
@@ -161,7 +163,10 @@ export default function App() {
         </div>
       )}
       {authChecked && !authenticated && (
-        <LoginScreen onSuccess={() => setAuthenticated(true)} />
+        <LoginScreen
+          configError={authConfigError}
+          onSuccess={() => setAuthenticated(true)}
+        />
       )}
       {authChecked && authenticated && (
     <>
