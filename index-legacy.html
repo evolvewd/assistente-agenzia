@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ViaggioAlert — Cruscotto Disagi</title>
+<style>
+  #apiSetup {
+    position: fixed; inset: 0; background: #0f0e0d; z-index: 999;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .setup-box {
+    background: #1a1816; border: 1px solid #2e2b28; border-radius: 12px;
+    max-width: 460px; width: 100%; padding: 32px;
+  }
+  .setup-logo { font-family: 'DM Serif Display', serif; font-size: 26px; color: #f0ede8; margin-bottom: 6px; }
+  .setup-logo span { color: #e8c547; }
+  .setup-sub { font-size: 11px; font-family: 'DM Mono', monospace; color: #5e5a54; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 28px; }
+  .setup-label { font-size: 11px; font-family: 'DM Mono', monospace; color: #9e9a94; margin-bottom: 8px; letter-spacing: 0.5px; }
+  .setup-input {
+    width: 100%; background: #242220; border: 1px solid #2e2b28; color: #f0ede8;
+    padding: 12px 14px; border-radius: 6px; font-family: 'DM Mono', monospace;
+    font-size: 13px; outline: none; transition: border-color 0.2s; margin-bottom: 12px;
+  }
+  .setup-input:focus { border-color: #e8c547; }
+  .setup-btn {
+    width: 100%; background: #e8c547; color: #000; border: none; padding: 12px;
+    border-radius: 6px; font-family: 'DM Sans', sans-serif; font-weight: 700;
+    font-size: 14px; cursor: pointer; transition: all 0.2s; margin-bottom: 16px;
+  }
+  .setup-btn:hover { background: #f0d050; }
+  .setup-note { font-size: 11px; color: #5e5a54; line-height: 1.6; }
+  .setup-note a { color: #9e9a94; }
+  .setup-error { color: #e85447; font-size: 12px; margin-top: -4px; margin-bottom: 10px; display: none; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0d;
+    --surface: #1a1816;
+    --surface2: #242220;
+    --border: #2e2b28;
+    --accent: #e8c547;
+    --accent2: #e87c47;
+    --red: #e85447;
+    --green: #47e8a0;
+    --blue: #478ae8;
+    --purple: #a047e8;
+    --text: #f0ede8;
+    --text2: #9e9a94;
+    --text3: #5e5a54;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NOISE TEXTURE */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    padding: 28px 0 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .logo h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .logo h1 span { color: var(--accent); }
+
+  .logo-sub {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .date-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 4px;
+  }
+
+  .refresh-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .refresh-btn:hover { background: #f0d050; transform: translateY(-1px); }
+  .refresh-btn:active { transform: translateY(0); }
+  .refresh-btn.loading { opacity: 0.6; pointer-events: none; }
+
+  /* STATUS BAR */
+  .status-bar {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-dot.loading { background: var(--accent); }
+  .status-dot.error { background: var(--red); animation: none; }
+
+  /* SUMMARY CARDS */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 20px 0;
+  }
+
+  @media (max-width: 700px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .summary-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .summary-card.active { border-color: var(--accent); background: var(--surface2); }
+
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .card-treni::before { background: var(--blue); }
+  .card-aerei::before { background: var(--purple); }
+  .card-navi::before { background: var(--green); }
+  .card-bus::before { background: var(--accent2); }
+
+  .card-icon { font-size: 22px; margin-bottom: 10px; }
+  .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text3); margin-bottom: 6px; font-family: 'DM Mono', monospace; }
+  .card-count { font-size: 32px; font-weight: 600; line-height: 1; }
+  .card-count.ok { color: var(--green); }
+  .card-count.warn { color: var(--accent); }
+  .card-count.danger { color: var(--red); }
+  .card-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    padding-bottom: 40px;
+  }
+
+  @media (max-width: 800px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* AI ANALYSIS BOX */
+  .ai-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .ai-box-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .ai-box-title {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ai-tag {
+    background: var(--accent);
+    color: #000;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+
+  .ai-box-body { padding: 18px; }
+
+  .ai-text {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .ai-text p { margin-bottom: 10px; }
+  .ai-text p:last-child { margin-bottom: 0; }
+  .ai-text strong { color: var(--accent); font-weight: 600; }
+  .ai-text .ok { color: var(--green); }
+  .ai-text .warn { color: var(--accent); }
+  .ai-text .danger { color: var(--red); }
+
+  /* SECTION */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .section-header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 2px 7px;
+    border-radius: 3px;
+    color: var(--text3);
+  }
+
+  .badge.red { border-color: var(--red); color: var(--red); }
+  .badge.yellow { border-color: var(--accent); color: var(--accent); }
+  .badge.green { border-color: var(--green); color: var(--green); }
+
+  /* ALERT ITEMS */
+  .alert-list { padding: 8px 0; }
+
+  .alert-item {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: start;
+    transition: background 0.15s;
+  }
+
+  .alert-item:last-child { border-bottom: none; }
+  .alert-item:hover { background: var(--surface2); }
+
+  .alert-severity {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .sev-high { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .sev-med { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .sev-low { background: var(--green); }
+
+  .alert-body { }
+  .alert-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .alert-desc { font-size: 12px; color: var(--text3); line-height: 1.5; }
+  .alert-time { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text3); white-space: nowrap; }
+
+  .empty-state {
+    padding: 28px;
+    text-align: center;
+    color: var(--text3);
+    font-size: 13px;
+  }
+
+  /* SIDEBAR */
+  .sidebar { }
+
+  /* ALERT DATE TOOL */
+  .alert-tool {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .tool-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tool-title {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .tool-body { padding: 16px; }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 11px; color: var(--text3); margin-bottom: 5px; font-family: 'DM Mono', monospace; letter-spacing: 0.5px; }
+
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: none;
+  }
+
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .field select option { background: var(--surface2); }
+
+  .check-btn {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 9px;
+    border-radius: 4px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+
+  .check-btn:hover { background: var(--accent); color: #000; }
+  .check-btn.loading { opacity: 0.5; pointer-events: none; }
+
+  .check-result {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text2);
+    display: none;
+  }
+
+  .check-result.visible { display: block; }
+
+  /* SAVED ALERTS */
+  .saved-list { padding: 8px 0; }
+  .saved-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .saved-item:last-child { border-bottom: none; }
+  .saved-item-info { flex: 1; }
+  .saved-item-date { font-size: 12px; font-weight: 500; }
+  .saved-item-detail { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .saved-item-del {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  .saved-item-del:hover { border-color: var(--red); color: var(--red); }
+
+  /* LOADING SKELETON */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 3px;
+    height: 14px;
+    margin-bottom: 8px;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .skeleton.short { width: 60%; }
+  .skeleton.medium { width: 80%; }
+
+  /* LINKS */
+  .sources-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .source-link {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text3);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 3px;
+    transition: all 0.2s;
+  }
+
+  .source-link:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* SPINNER */
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TOP FILTER */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 0;
+    flex-wrap: wrap;
+  }
+
+  .filter-pill {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.2s;
+    background: none;
+    letter-spacing: 0.5px;
+  }
+
+  .filter-pill:hover { border-color: var(--text2); color: var(--text2); }
+  .filter-pill.active { border-color: var(--accent); color: var(--accent); background: rgba(232, 197, 71, 0.07); }
+
+  /* SECTION SCROLL */
+  .section-body { max-height: 320px; overflow-y: auto; }
+  .section-body::-webkit-scrollbar { width: 4px; }
+  .section-body::-webkit-scrollbar-track { background: transparent; }
+  .section-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- API KEY SETUP SCREEN -->
+<div id="apiSetup">
+  <div class="setup-box">
+    <div class="setup-logo">Viaggio<span>Alert</span></div>
+    <div class="setup-sub">Configurazione iniziale</div>
+    <div class="setup-label">Inserisci la tua Anthropic API Key</div>
+    <input class="setup-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off">
+    <div class="setup-error" id="setupError">Chiave non valida o errore di connessione. Riprova.</div>
+    <button class="setup-btn" onclick="saveApiKey()">Salva e avvia →</button>
+    <div class="setup-note">
+      🔒 La chiave viene salvata <strong>solo nel tuo browser</strong> (localStorage) e non viene mai inviata altrove.<br><br>
+      Non hai ancora una chiave? Creane una su <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> — costa pochi centesimi al mese per questo utilizzo.<br><br>
+      Per cambiarla in futuro, clicca l'icona ⚙️ in alto a destra.
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <h1>Viaggio<span>Alert</span></h1>
+      <span class="logo-sub">Cruscotto Disagi</span>
+    </div>
+    <div class="header-right">
+      <div class="date-badge" id="dateBadge">—</div>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
+        <span>↻</span> Aggiorna
+      </button>
+      <button onclick="resetApiKey()" title="Cambia API Key" style="background:none;border:1px solid var(--border);color:var(--text3);width:36px;height:36px;border-radius:4px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">⚙️</button>
+    </div>
+  </header>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Pronto</span>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-grid">
+    <div class="summary-card card-treni" onclick="filterSection('treni')">
+      <div class="card-icon">🚆</div>
+      <div class="card-label">Treni</div>
+      <div class="card-count" id="cnt-treni">—</div>
+      <div class="card-sub" id="sub-treni">Caricamento...</div>
+    </div>
+    <div class="summary-card card-aerei" onclick="filterSection('aerei')">
+      <div class="card-icon">✈️</div>
+      <div class="card-label">Aerei</div>
+      <div class="card-count" id="cnt-aerei">—</div>
+      <div class="card-sub" id="sub-aerei">Caricamento...</div>
+    </div>
+    <div class="summary-card card-navi" onclick="filterSection('navi')">
+      <div class="card-icon">🛳️</div>
+      <div class="card-label">Navi</div>
+      <div class="card-count" id="cnt-navi">—</div>
+      <div class="card-sub" id="sub-navi">Caricamento...</div>
+    </div>
+    <div class="summary-card card-bus" onclick="filterSection('bus')">
+      <div class="card-icon">🚌</div>
+      <div class="card-label">Bus</div>
+      <div class="card-count" id="cnt-bus">—</div>
+      <div class="card-sub" id="sub-bus">Caricamento...</div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <button class="filter-pill active" onclick="setFilter('tutti', this)">Tutti</button>
+    <button class="filter-pill" onclick="setFilter('scioperi', this)">Scioperi</button>
+    <button class="filter-pill" onclick="setFilter('cancellazioni', this)">Cancellazioni</button>
+    <button class="filter-pill" onclick="setFilter('lavori', this)">Lavori</button>
+    <button class="filter-pill" onclick="setFilter('ritardi', this)">Ritardi</button>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+    <div>
+      <!-- AI ANALYSIS -->
+      <div class="ai-box">
+        <div class="ai-box-header">
+          <div class="ai-box-title">
+            <span>Analisi del giorno</span>
+            <span class="ai-tag">AI</span>
+          </div>
+        </div>
+        <div class="ai-box-body">
+          <div class="ai-text" id="aiAnalysis">
+            <div class="skeleton medium"></div>
+            <div class="skeleton"></div>
+            <div class="skeleton short"></div>
+          </div>
+        </div>
+        <div class="sources-links">
+          <a class="source-link" href="https://scioperi.mit.gov.it" target="_blank">↗ MIT Scioperi</a>
+          <a class="source-link" href="https://www.trenitalia.com/it/informazioni/Infomobilita.html" target="_blank">↗ Trenitalia Info</a>
+          <a class="source-link" href="https://www.italotreno.it/it/informazioni-viaggio/italo-informa" target="_blank">↗ Italo Informa</a>
+          <a class="source-link" href="https://www.enac.gov.it" target="_blank">↗ ENAC</a>
+        </div>
+      </div>
+
+      <!-- ALERTS LIST -->
+      <div class="section" id="mainSection">
+        <div class="section-header">
+          <div class="section-title">
+            <span id="sectionIcon">⚠️</span>
+            <span id="sectionTitle">Disagi attivi oggi</span>
+          </div>
+          <div class="badge red" id="alertCount">—</div>
+        </div>
+        <div class="section-body">
+          <div class="alert-list" id="alertList">
+            <div class="empty-state">Caricamento in corso...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- UPCOMING -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>📅</span>
+            <span>Prossimi 7 giorni</span>
+          </div>
+          <div class="badge yellow" id="upcomingCount">—</div>
+        </div>
+        <div class="section-body">
+          <div class="alert-list" id="upcomingList">
+            <div class="empty-state">Caricamento in corso...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <!-- DATE CHECKER -->
+      <div class="alert-tool">
+        <div class="tool-header">
+          <div class="tool-title">🔍 Controlla una data di viaggio</div>
+        </div>
+        <div class="tool-body">
+          <div class="field">
+            <label>Data partenza</label>
+            <input type="date" id="checkDate">
+          </div>
+          <div class="field">
+            <label>Mezzo di trasporto</label>
+            <select id="checkMezzo">
+              <option value="tutti">Tutti i mezzi</option>
+              <option value="treno">Treno</option>
+              <option value="aereo">Aereo</option>
+              <option value="nave">Nave / Traghetto</option>
+              <option value="bus">Bus / Autobus</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Rotta o cliente (opzionale)</label>
+            <input type="text" id="checkNote" placeholder="es. Milano–Roma, Sig. Rossi…">
+          </div>
+          <button class="check-btn" id="checkBtn" onclick="checkDate()">Verifica con AI</button>
+          <div class="check-result" id="checkResult"></div>
+        </div>
+      </div>
+
+      <!-- SAVED WATCHES -->
+      <div class="alert-tool">
+        <div class="tool-header">
+          <div class="tool-title">📌 Date salvate da monitorare</div>
+        </div>
+        <div class="tool-body" style="padding: 0;">
+          <div class="saved-list" id="savedList">
+            <div class="empty-state" style="padding: 16px; font-size: 12px;">
+              Nessuna data salvata.<br>Usa il controllo qui sopra per aggiungerne.
+            </div>
+          </div>
+          <div style="padding: 12px 16px; border-top: 1px solid var(--border);">
+            <button class="check-btn" onclick="checkAllSaved()" id="checkAllBtn">Verifica tutte con AI</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================
+// API KEY MANAGEMENT
+// ============================
+let ANTHROPIC_API_KEY = localStorage.getItem('viaggioalert_apikey') || '';
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (ANTHROPIC_API_KEY) {
+    document.getElementById('apiSetup').style.display = 'none';
+  }
+});
+async function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    const err = document.getElementById('setupError');
+    err.style.display = 'block';
+    err.textContent = 'La chiave deve iniziare con "sk-ant-". Controllala e riprova.';
+    return;
+  }
+  document.getElementById('setupError').style.display = 'none';
+  const btn = document.querySelector('.setup-btn');
+  btn.textContent = 'Verifica in corso...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 10, messages: [{ role: 'user', content: 'hi' }] })
+    });
+    if (!res.ok) throw new Error('invalid');
+    ANTHROPIC_API_KEY = key;
+    localStorage.setItem('viaggioalert_apikey', key);
+    document.getElementById('apiSetup').style.display = 'none';
+    loadAll();
+  } catch {
+    const err = document.getElementById('setupError');
+    err.style.display = 'block';
+    err.textContent = 'Chiave non valida o errore di rete. Controlla la chiave e riprova.';
+    btn.textContent = 'Salva e avvia →';
+    btn.disabled = false;
+  }
+}
+
+function resetApiKey() {
+  if (confirm('Vuoi cambiare la API key?')) {
+    localStorage.removeItem('viaggioalert_apikey');
+    ANTHROPIC_API_KEY = '';
+    document.getElementById('apiKeyInput').value = '';
+    document.getElementById('setupError').style.display = 'none';
+    document.getElementById('apiSetup').style.display = 'flex';
+  }
+}
+
+let allAlerts = [];
+let currentFilter = 'tutti';
+let currentSection = null;
+let savedWatches = JSON.parse(localStorage.getItem('viaggioalert_saved') || '[]');
+
+// ============================
+// INIT
+// ============================
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  document.getElementById('dateBadge').textContent = now.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('checkDate').valueAsDate = now;
+  renderSaved();
+  if (ANTHROPIC_API_KEY) loadAll();
+});
+
+function setStatus(type, text) {
+  const dot = document.getElementById('statusDot');
+  const st = document.getElementById('statusText');
+  dot.className = 'status-dot' + (type === 'loading' ? ' loading' : type === 'error' ? ' error' : '');
+  st.textContent = text;
+}
+
+// ============================
+// MAIN LOAD
+// ============================
+async function loadAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span> Caricamento...';
+  setStatus('loading', 'Recupero informazioni in corso...');
+
+  // Reset counters
+  ['treni','aerei','navi','bus'].forEach(k => {
+    document.getElementById('cnt-'+k).textContent = '…';
+    document.getElementById('sub-'+k).textContent = 'Verifica...';
+    document.getElementById('cnt-'+k).className = 'card-count';
+  });
+
+  document.getElementById('aiAnalysis').innerHTML = '<div class="skeleton medium"></div><div class="skeleton"></div><div class="skeleton short"></div>';
+
+  try {
+    const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const [alertData, analysisData] = await Promise.all([
+      fetchAlerts(today),
+      fetchAnalysis(today)
+    ]);
+
+    allAlerts = alertData;
+    renderAlerts(alertData);
+    updateCounters(alertData);
+    document.getElementById('aiAnalysis').innerHTML = analysisData;
+    setStatus('ok', `Ultimo aggiornamento: ${new Date().toLocaleTimeString('it-IT')}`);
+  } catch(e) {
+    setStatus('error', 'Errore nel caricamento. Riprova.');
+    document.getElementById('aiAnalysis').innerHTML = '<p style="color:var(--red)">Errore nel caricamento. Controlla la connessione e riprova.</p>';
+  }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<span>↻</span> Aggiorna';
+}
+
+// ============================
+// FETCH ALERTS (AI powered)
+// ============================
+async function fetchAlerts(today) {
+  const prompt = `Sei un assistente specializzato in disagi dei trasporti italiani. 
+Oggi è ${today}.
+
+Basandoti sulla tua conoscenza aggiornata delle fonti ufficiali italiane (MIT scioperi, Trenitalia, Italo, ENAC, compagnie marittime), fornisci i disagi dei trasporti italiani OGGI E NEI PROSSIMI 7 GIORNI.
+
+IMPORTANTE: Rispondi SOLO con un JSON valido, nessun testo prima o dopo.
+
+Formato richiesto:
+{
+  "oggi": [
+    {
+      "id": "unique_id",
+      "tipo": "sciopero|cancellazione|ritardo|lavori",
+      "mezzo": "treni|aerei|navi|bus",
+      "operatore": "nome compagnia o ente",
+      "titolo": "titolo breve descrittivo (max 60 caratteri)",
+      "descrizione": "descrizione completa con orari e dettagli (2-3 frasi)",
+      "severita": "alta|media|bassa",
+      "orario": "es. 09:00-17:00 o Tutto il giorno",
+      "fonte": "nome fonte ufficiale"
+    }
+  ],
+  "prossimi7giorni": [
+    {
+      "id": "unique_id",
+      "data": "gg/mm/aaaa",
+      "tipo": "sciopero|lavori|evento",
+      "mezzo": "treni|aerei|navi|bus",
+      "operatore": "nome",
+      "titolo": "titolo breve",
+      "descrizione": "descrizione",
+      "severita": "alta|media|bassa"
+    }
+  ]
+}
+
+Se non hai informazioni certe su disagi specifici per oggi, indica comunque la situazione generale (es. nessuno sciopero confermato = bassa severità). Non inventare date o eventi specifici non verificabili. Includi almeno 2-4 elementi realistici per categoria basati sulle tue conoscenze generali del settore.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  const data = await res.json();
+  const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  const clean = text.replace(/```json|```/g, '').trim();
+
+  try {
+    return JSON.parse(clean);
+  } catch {
+    // Fallback structure if JSON fails
+    return { oggi: [], prossimi7giorni: [] };
+  }
+}
+
+// ============================
+// FETCH AI ANALYSIS
+// ============================
+async function fetchAnalysis(today) {
+  const prompt = `Sei un assistente per agenzie di viaggio italiane. Oggi è ${today}.
+
+Scrivi un briefing mattutino CONCISO (3-4 paragrafi) sullo stato dei trasporti italiani oggi, pensato per una responsabile di agenzia di viaggi. 
+Usa HTML semplice con <p>, <strong>, e classi CSS: class="ok" per verde, class="warn" per giallo, class="danger" per rosso.
+Includi: 1) Situazione generale, 2) Eventuali scioperi o disagi noti, 3) Consigli pratici per i clienti, 4) Un consiglio su cosa comunicare ai clienti.
+Tono: professionale ma diretto. Massimo 150 parole totali.
+Rispondi SOLO con l'HTML, nessun testo extra.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  const data = await res.json();
+  const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  return text.replace(/```html|```/g, '').trim();
+}
+
+// ============================
+// RENDER
+// ============================
+function renderAlerts(data) {
+  const oggi = data.oggi || [];
+  const prossimi = data.prossimi7giorni || [];
+
+  document.getElementById('alertCount').textContent = oggi.length;
+  document.getElementById('upcomingCount').textContent = prossimi.length;
+
+  const list = document.getElementById('alertList');
+  if (oggi.length === 0) {
+    list.innerHTML = '<div class="empty-state">✅ Nessun disagio confermato per oggi</div>';
+  } else {
+    list.innerHTML = filterAlerts(oggi).map(a => renderAlertItem(a)).join('');
+  }
+
+  const uList = document.getElementById('upcomingList');
+  if (prossimi.length === 0) {
+    uList.innerHTML = '<div class="empty-state">✅ Nessun disagio previsto nei prossimi 7 giorni</div>';
+  } else {
+    uList.innerHTML = prossimi.map(a => renderUpcomingItem(a)).join('');
+  }
+}
+
+function renderAlertItem(a) {
+  const sevClass = a.severita === 'alta' ? 'sev-high' : a.severita === 'media' ? 'sev-med' : 'sev-low';
+  const mezzo = {treni:'🚆', aerei:'✈️', navi:'🛳️', bus:'🚌'}[a.mezzo] || '⚠️';
+  const tipoLabel = {sciopero:'SCIOPERO', cancellazione:'CANCELLAZIONE', ritardo:'RITARDO', lavori:'LAVORI'}[a.tipo] || a.tipo.toUpperCase();
+
+  return `<div class="alert-item">
+    <div class="alert-severity ${sevClass}"></div>
+    <div class="alert-body">
+      <div class="alert-title">${mezzo} ${a.operatore} — <span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3)">${tipoLabel}</span></div>
+      <div class="alert-title" style="font-weight:400;margin-bottom:4px">${a.titolo}</div>
+      <div class="alert-desc">${a.descrizione}</div>
+      ${a.fonte ? `<div style="margin-top:4px;font-size:10px;font-family:'DM Mono',monospace;color:var(--text3)">Fonte: ${a.fonte}</div>` : ''}
+    </div>
+    <div class="alert-time">${a.orario || ''}</div>
+  </div>`;
+}
+
+function renderUpcomingItem(a) {
+  const sevClass = a.severita === 'alta' ? 'sev-high' : a.severita === 'media' ? 'sev-med' : 'sev-low';
+  const mezzo = {treni:'🚆', aerei:'✈️', navi:'🛳️', bus:'🚌'}[a.mezzo] || '⚠️';
+
+  return `<div class="alert-item">
+    <div class="alert-severity ${sevClass}"></div>
+    <div class="alert-body">
+      <div class="alert-title">${mezzo} ${a.data} — ${a.operatore}</div>
+      <div class="alert-title" style="font-weight:400;margin-bottom:4px">${a.titolo}</div>
+      <div class="alert-desc">${a.descrizione}</div>
+    </div>
+  </div>`;
+}
+
+function filterAlerts(alerts) {
+  if (currentFilter === 'tutti') return alerts;
+  const map = { scioperi: 'sciopero', cancellazioni: 'cancellazione', lavori: 'lavori', ritardi: 'ritardo' };
+  return alerts.filter(a => a.tipo === map[currentFilter]);
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  if (allAlerts.oggi) {
+    const list = document.getElementById('alertList');
+    const filtered = filterAlerts(allAlerts.oggi);
+    list.innerHTML = filtered.length ? filtered.map(a => renderAlertItem(a)).join('') : '<div class="empty-state">Nessun elemento per questo filtro</div>';
+  }
+}
+
+function filterSection(mezzo) {
+  currentSection = mezzo;
+  const titles = {treni:'Treni', aerei:'Aerei', navi:'Navi', bus:'Bus'};
+  document.getElementById('sectionTitle').textContent = `Disagi — ${titles[mezzo]}`;
+  if (allAlerts.oggi) {
+    const filtered = allAlerts.oggi.filter(a => a.mezzo === mezzo);
+    const list = document.getElementById('alertList');
+    list.innerHTML = filtered.length ? filtered.map(a => renderAlertItem(a)).join('') : `<div class="empty-state">✅ Nessun disagio per ${titles[mezzo]} oggi</div>`;
+  }
+}
+
+// ============================
+// UPDATE COUNTERS
+// ============================
+function updateCounters(data) {
+  const oggi = data.oggi || [];
+  const mezzi = ['treni','aerei','navi','bus'];
+
+  mezzi.forEach(m => {
+    const items = oggi.filter(a => a.mezzo === m);
+    const high = items.filter(a => a.severita === 'alta').length;
+    const cnt = document.getElementById('cnt-'+m);
+    const sub = document.getElementById('sub-'+m);
+    cnt.textContent = items.length;
+    cnt.className = 'card-count ' + (high > 0 ? 'danger' : items.length > 0 ? 'warn' : 'ok');
+    sub.textContent = high > 0 ? `${high} critici` : items.length > 0 ? 'Disagi minori' : 'Regolare';
+  });
+}
+
+// ============================
+// DATE CHECKER
+// ============================
+async function checkDate() {
+  const date = document.getElementById('checkDate').value;
+  const mezzo = document.getElementById('checkMezzo').value;
+  const note = document.getElementById('checkNote').value;
+
+  if (!date) return;
+
+  const btn = document.getElementById('checkBtn');
+  btn.classList.add('loading');
+  btn.textContent = 'Verifica in corso...';
+
+  const result = document.getElementById('checkResult');
+  result.className = 'check-result visible';
+  result.innerHTML = '<div class="skeleton"></div><div class="skeleton medium"></div>';
+
+  const dateFormatted = new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  try {
+    const prompt = `Sei un assistente per un'agenzia di viaggi italiana.
+Devo verificare se ci sono disagi per un viaggio in Italia il ${dateFormatted}.
+Mezzo: ${mezzo === 'tutti' ? 'qualsiasi mezzo di trasporto' : mezzo}
+${note ? 'Note: ' + note : ''}
+
+Basandoti sulle tue conoscenze di scioperi programmati, lavori e disagi dei trasporti italiani, fornisci una risposta CONCISA (max 80 parole) in italiano che risponda a:
+1. Rischi specifici per quella data
+2. Consiglio pratico per l'agenzia
+3. Raccomandazione (✅ Tutto ok / ⚠️ Attenzione / 🔴 Alto rischio)
+
+Formato: testo semplice con HTML basic (<strong>, <span>). Sii diretto e utile.`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    result.innerHTML = `<div style="font-size:12px;line-height:1.6">${text}</div>
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:8px">
+        <button onclick="saveWatch('${date}','${mezzo}','${note.replace(/'/g,"\\'")}',this)" style="font-size:10px;background:none;border:1px solid var(--border);color:var(--text3);padding:3px 8px;border-radius:3px;cursor:pointer;font-family:'DM Mono',monospace">📌 Salva</button>
+      </div>`;
+
+  } catch(e) {
+    result.innerHTML = '<span style="color:var(--red)">Errore. Riprova.</span>';
+  }
+
+  btn.classList.remove('loading');
+  btn.textContent = 'Verifica con AI';
+}
+
+// ============================
+// SAVED WATCHES
+// ============================
+function saveWatch(date, mezzo, note, btn) {
+  const existing = savedWatches.find(w => w.date === date && w.mezzo === mezzo);
+  if (!existing) {
+    savedWatches.push({ date, mezzo, note, saved: new Date().toISOString() });
+    localStorage.setItem('viaggioalert_saved', JSON.stringify(savedWatches));
+    renderSaved();
+    btn.textContent = '✅ Salvata';
+    btn.disabled = true;
+  }
+}
+
+function removeSaved(i) {
+  savedWatches.splice(i, 1);
+  localStorage.setItem('viaggioalert_saved', JSON.stringify(savedWatches));
+  renderSaved();
+}
+
+function renderSaved() {
+  const list = document.getElementById('savedList');
+  if (savedWatches.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:16px;font-size:12px">Nessuna data salvata.<br>Usa il controllo qui sopra.</div>';
+    return;
+  }
+
+  const mezziLabel = {tutti:'Tutti i mezzi', treno:'Treno', aereo:'Aereo', nave:'Nave', bus:'Bus'};
+  list.innerHTML = savedWatches.map((w, i) => {
+    const d = new Date(w.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `<div class="saved-item">
+      <div class="saved-item-info">
+        <div class="saved-item-date">📅 ${d}</div>
+        <div class="saved-item-detail">${mezziLabel[w.mezzo] || w.mezzo}${w.note ? ' · ' + w.note : ''}</div>
+      </div>
+      <button class="saved-item-del" onclick="removeSaved(${i})">×</button>
+    </div>`;
+  }).join('');
+}
+
+async function checkAllSaved() {
+  if (savedWatches.length === 0) return;
+  const btn = document.getElementById('checkAllBtn');
+  btn.textContent = 'Verifica in corso...';
+  btn.classList.add('loading');
+
+  const dateList = savedWatches.map(w => {
+    const d = new Date(w.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+    return `- ${d} (${w.mezzo})${w.note ? ', ' + w.note : ''}`;
+  }).join('\n');
+
+  try {
+    const prompt = `Sei un assistente per un'agenzia di viaggi italiana.
+Verifica le seguenti date di viaggio per possibili disagi:
+${dateList}
+
+Per ciascuna data, indica brevemente il rischio (✅ ok / ⚠️ attenzione / 🔴 alto rischio) con una riga di spiegazione.
+Formato: lista semplice HTML con <li> per ogni data. Rispondi solo con l'HTML della lista.`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+
+    // Show in a popup-like div
+    const existing = document.getElementById('allCheckResult');
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.id = 'allCheckResult';
+    div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px';
+    div.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;max-width:500px;width:100%;padding:24px;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:'DM Mono',monospace;font-size:12px;letter-spacing:1px;color:var(--text2)">VERIFICA DATE SALVATE <span class="ai-tag">AI</span></div>
+        <button onclick="document.getElementById('allCheckResult').remove()" style="background:none;border:1px solid var(--border);color:var(--text3);width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:16px">×</button>
+      </div>
+      <ul style="list-style:none;font-size:13px;line-height:1.8">${text}</ul>
+    </div>`;
+    document.body.appendChild(div);
+    div.addEventListener('click', e => { if (e.target === div) div.remove(); });
+
+  } catch(e) {
+    alert('Errore nella verifica. Riprova.');
+  }
+
+  btn.classList.remove('loading');
+  btn.textContent = 'Verifica tutte con AI';
+}
+</script>
+</body>
+</html>
