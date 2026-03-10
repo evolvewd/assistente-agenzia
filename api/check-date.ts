@@ -1,12 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { hasApiKey, callAnthropic } from './anthropic';
+import { getBody } from './parseBody';
+import { requireAuth } from '../lib/cookieAuth';
 
 const PROMPT = (dateFormatted: string, mezzo: string, note: string) => `Sei un assistente per un'agenzia di viaggi italiana.
 Devo verificare se ci sono disagi per un viaggio in Italia il ${dateFormatted}.
 Mezzo: ${mezzo === 'tutti' ? 'qualsiasi mezzo di trasporto' : mezzo}
 ${note ? 'Note: ' + note : ''}
 
-Basandoti sulle tue conoscenze di scioperi programmati, lavori e disagi dei trasporti italiani, fornisci una risposta CONCISA (max 80 parole) in italiano che risponda a:
+Basandoti SOLO sulla tua conoscenza (non fare ricerche web) su scioperi programmati, lavori e disagi dei trasporti italiani, fornisci una risposta CONCISA (max 80 parole) in italiano che risponda a:
 1. Rischi specifici per quella data
 2. Consiglio pratico per l'agenzia
 3. Raccomandazione (✅ Tutto ok / ⚠️ Attenzione / 🔴 Alto rischio)
@@ -18,11 +20,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!requireAuth(req, res)) return;
   if (!hasApiKey()) {
     return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
   }
   try {
-    const { dateFormatted, mezzo, note } = req.body as {
+    const body = await getBody(req);
+    const { dateFormatted, mezzo, note } = body as {
       dateFormatted?: string;
       mezzo?: string;
       note?: string;
@@ -32,7 +36,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const { text } = await callAnthropic({
       max_tokens: 1000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [
         {
           role: 'user',

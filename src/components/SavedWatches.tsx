@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { checkAllSavedWithAi } from '../lib/api';
 import { formatDateITShort } from '../lib/dateUtils';
 import type { SavedWatch } from '../types/alerts';
+
+const CHECK_ALL_COOLDOWN_SECONDS = 30;
 
 const MEZZI_LABEL: Record<string, string> = {
   tutti: 'Tutti i mezzi',
@@ -18,10 +20,32 @@ interface SavedWatchesProps {
 
 export function SavedWatches({ watches, onRemove }: SavedWatchesProps) {
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [modalContent, setModalContent] = useState<string | null>(null);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldown((s) => {
+        if (s <= 1) {
+          if (cooldownTimerRef.current) {
+            clearInterval(cooldownTimerRef.current);
+            cooldownTimerRef.current = null;
+          }
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => {
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    };
+  }, [cooldown]);
 
   const handleCheckAll = async () => {
-    if (watches.length === 0) return;
+    if (watches.length === 0 || loading || cooldown > 0) return;
     setLoading(true);
     setModalContent(null);
     const dateList = watches
@@ -38,8 +62,10 @@ export function SavedWatches({ watches, onRemove }: SavedWatchesProps) {
     try {
       const html = await checkAllSavedWithAi(dateList);
       setModalContent(html);
+      setCooldown(CHECK_ALL_COOLDOWN_SECONDS);
     } catch {
       window.alert('Errore nella verifica. Riprova.');
+      setCooldown(15);
     } finally {
       setLoading(false);
     }
@@ -86,11 +112,16 @@ export function SavedWatches({ watches, onRemove }: SavedWatchesProps) {
           <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
             <button
               type="button"
-              className={`check-btn ${loading ? 'loading' : ''}`}
+              className={`check-btn ${loading ? 'loading' : ''} ${cooldown > 0 ? 'cooldown' : ''}`}
               onClick={handleCheckAll}
-              disabled={loading || watches.length === 0}
+              disabled={loading || watches.length === 0 || cooldown > 0}
+              title={cooldown > 0 ? `Attendi ${cooldown} s` : undefined}
             >
-              {loading ? 'Verifica in corso...' : 'Verifica tutte con AI'}
+              {loading
+                ? 'Verifica in corso...'
+                : cooldown > 0
+                  ? `Attendi ${cooldown} s`
+                  : 'Verifica tutte con AI'}
             </button>
           </div>
         </div>

@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"node server/dev-api.mjs\" \"npx --yes wait-on tcp:5172 && vite\"",
+    "dev:ui": "vite",
+    "dev:api": "node server/dev-api.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
@@ -17,6 +19,9 @@
     "@types/react-dom": "^18.3.1",
     "@vercel/node": "^3.2.0",
     "@vitejs/plugin-react": "^4.3.3",
+    "concurrently": "^9.1.0",
+    "dotenv": "^16.4.5",
+    "wait-on": "^8.0.1",
     "typescript": "~5.6.2",
     "vite": "^6.0.1"
   }

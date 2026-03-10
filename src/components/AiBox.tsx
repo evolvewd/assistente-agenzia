@@ -16,7 +16,7 @@ export function AiBox({ content, loading, error }: AiBoxProps) {
     <div className="ai-box">
       <div className="ai-box-header">
         <div className="ai-box-title">
-          <span>Analisi del giorno</span>
+          <span>Analisi del giorno · FiloSofia Viaggi</span>
           <span className="ai-tag">AI</span>
         </div>
       </div>

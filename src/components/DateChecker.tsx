@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { checkDateWithAi } from '../lib/api';
 import {
   formatDateIT,
@@ -7,6 +7,8 @@ import {
   dateITToISO,
 } from '../lib/dateUtils';
 import type { SavedWatch } from '../types/alerts';
+
+const CHECK_COOLDOWN_SECONDS = 30;
 
 interface DateCheckerProps {
   onSaveWatch: (watch: Omit<SavedWatch, 'saved'>) => void;
@@ -26,23 +28,47 @@ export function DateChecker({ onSaveWatch }: DateCheckerProps) {
   const [mezzo, setMezzo] = useState('tutti');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldown((s) => {
+        if (s <= 1) {
+          if (cooldownTimerRef.current) {
+            clearInterval(cooldownTimerRef.current);
+            cooldownTimerRef.current = null;
+          }
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => {
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    };
+  }, [cooldown]);
 
   const parsedDate = useMemo(() => parseDateIT(dateIT), [dateIT]);
   const dateFormattedForApi = parsedDate ? formatDateIT(parsedDate) : '';
   const dateISO = useMemo(() => (parsedDate ? dateITToISO(dateIT) : null), [dateIT, parsedDate]);
 
   const handleCheck = async () => {
-    if (!parsedDate || !dateFormattedForApi) return;
+    if (!parsedDate || !dateFormattedForApi || loading || cooldown > 0) return;
     setLoading(true);
     setResult(null);
     setError(false);
     try {
       const text = await checkDateWithAi(dateFormattedForApi, mezzo, note);
       setResult(text);
+      setCooldown(CHECK_COOLDOWN_SECONDS);
     } catch {
       setError(true);
+      setCooldown(15);
     } finally {
       setLoading(false);
     }
@@ -100,11 +126,16 @@ export function DateChecker({ onSaveWatch }: DateCheckerProps) {
         </div>
         <button
           type="button"
-          className={`check-btn ${loading ? 'loading' : ''}`}
+          className={`check-btn ${loading ? 'loading' : ''} ${cooldown > 0 ? 'cooldown' : ''}`}
           onClick={handleCheck}
-          disabled={loading || !parsedDate}
+          disabled={loading || !parsedDate || cooldown > 0}
+          title={cooldown > 0 ? `Attendi ${cooldown} s prima di un'altra verifica` : undefined}
         >
-          {loading ? 'Verifica in corso...' : 'Verifica con AI'}
+          {loading
+            ? 'Verifica in corso...'
+            : cooldown > 0
+              ? `Attendi ${cooldown} s`
+              : 'Verifica con AI'}
         </button>
         <div className={`check-result ${result !== null || error ? 'visible' : ''}`}>
           {loading && (

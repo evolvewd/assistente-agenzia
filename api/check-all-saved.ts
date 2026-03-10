@@ -1,11 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { hasApiKey, callAnthropic } from './anthropic';
+import { getBody } from './parseBody';
+import { requireAuth } from '../lib/cookieAuth';
 
 const PROMPT = (dateList: string) => `Sei un assistente per un'agenzia di viaggi italiana.
 Verifica le seguenti date di viaggio per possibili disagi:
 ${dateList}
 
-Per ciascuna data, indica brevemente il rischio (✅ ok / ⚠️ attenzione / 🔴 alto rischio) con una riga di spiegazione.
+Basandoti SOLO sulla tua conoscenza (non fare ricerche web). Per ciascuna data indica brevemente il rischio (✅ ok / ⚠️ attenzione / 🔴 alto rischio) con una riga di spiegazione.
 Formato: lista semplice HTML con <li> per ogni data. Rispondi solo con l'HTML della lista.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -13,17 +15,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!requireAuth(req, res)) return;
   if (!hasApiKey()) {
     return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
   }
   try {
-    const { dateList } = req.body as { dateList?: string };
+    const body = await getBody(req);
+    const { dateList } = body as { dateList?: string };
     if (!dateList || typeof dateList !== 'string') {
       return res.status(400).json({ error: 'Missing or invalid "dateList"' });
     }
     const { text } = await callAnthropic({
       max_tokens: 1000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: PROMPT(dateList) }],
     });
     res.setHeader('Cache-Control', 'no-store');

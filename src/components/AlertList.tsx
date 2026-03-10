@@ -34,7 +34,7 @@ export function AlertListToday({ data, filter, sectionMezzo }: AlertListProps) {
       ? `✅ Nessun disagio per ${sectionMezzo === 'treni' ? 'Treni' : sectionMezzo === 'aerei' ? 'Aerei' : sectionMezzo === 'navi' ? 'Navi' : 'Bus'} oggi`
       : filter !== 'tutti'
         ? 'Nessun elemento per questo filtro'
-        : '✅ Nessun disagio confermato per oggi';
+        : '✅ Nessun disagio confermato per oggi. Controlla sotto la sezione «Prossimi 7 giorni» per disagi in programma.';
     return (
       <div className="section">
         <div className="section-header">

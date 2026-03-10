@@ -12,7 +12,10 @@ export interface AlertOggi {
   descrizione: string;
   severita: Severita;
   orario?: string;
+  /** Nome della fonte (es. Trenitalia, MIT Scioperi) */
   fonte?: string;
+  /** URL dell'articolo/pagina per leggere l'approfondimento */
+  fonte_url?: string;
 }
 
 export interface AlertProssimi {
@@ -24,6 +27,10 @@ export interface AlertProssimi {
   titolo: string;
   descrizione: string;
   severita: Severita;
+  /** Nome della fonte */
+  fonte?: string;
+  /** URL per leggere l'articolo completo */
+  fonte_url?: string;
 }
 
 export interface AlertData {

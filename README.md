@@ -1,24 +1,30 @@
-# ViaggioAlert — Cruscotto Disagi
+# FiloSofia Viaggi — Cruscotto Disagi
 
-Dashboard per agenzie di viaggio: monitoraggio disagi trasporti (treni, aerei, navi, bus) con analisi AI (Anthropic Claude).
+Cruscotto per **FiloSofia Viaggi** (Giada Moramarco): monitoraggio disagi trasporti (treni, aerei, navi, bus) con analisi AI (Anthropic Claude).
 
 ## Stack
 
 - **React 18** + **TypeScript**
 - **Vite** (build e dev server)
-- **API**: route serverless Vercel (`/api/*`) — la chiave API resta sul server (Vercel Secrets / `.env.local`)
+- **API**: route serverless Vercel (`/api/*`) — chiave API e password sul server (Vercel Secrets / `.env.local`)
 - **Deploy**: Vercel
 
-## Chiave API (Anthropic)
+## Variabili d'ambiente
 
-La chiave **non** è più inserita a mano nell’app: viene letta lato server.
+### ANTHROPIC_API_KEY (obbligatoria per le API)
 
-- **Su Vercel**: in **Project Settings → Environment Variables** (o **Secrets**) aggiungi `ANTHROPIC_API_KEY` con valore `sk-ant-...`.
-- **In locale**: crea un file **`.env.local`** nella root del progetto (vedi `.env.example`) e inserisci:
+- **Su Vercel**: **Project Settings → Environment Variables** (o **Secrets**) → aggiungi `ANTHROPIC_API_KEY` con valore `sk-ant-...`.
+- **In locale**: in **`.env.local`** (vedi `.env.example`):
   ```bash
   ANTHROPIC_API_KEY=sk-ant-api03-...
   ```
-  Poi avvia l’app con **`npx vercel dev`** (non solo `npm run dev`), così le route `/api/*` e `.env.local` vengono usate.
+
+### PROTECTION_PASSWORD (opzionale — protezione accesso)
+
+Se impostata, l’app richiede la password prima di mostrare dati e usare le API.
+
+- **Su Vercel**: **Project Settings → Environment Variables** → **Add** → nome `PROTECTION_PASSWORD`, valore la password scelta → **Save** (consigliato come **Secret**). Dopo il deploy, aprendo il **sito** nel browser verrà chiesta la password; il **git push** non c’entra con questa password.
+- **In locale**: in `.env.local` aggiungi `PROTECTION_PASSWORD=tua_password`. Se non la imposti, in locale l’app è accessibile senza login.
 
 ## Setup
 
@@ -38,7 +44,16 @@ Solo frontend (senza API): `npm run dev` → [http://localhost:5173](http://loca
 npm run build
 ```
 
-Collega il repo a Vercel; imposta `ANTHROPIC_API_KEY` in **Settings → Environment Variables**. Le rewrites in `vercel.json` gestiscono il routing SPA.
+Collega il repo a Vercel; imposta in **Settings → Environment Variables** (o **Secrets**):
+
+- `ANTHROPIC_API_KEY` — chiave API Anthropic
+- `PROTECTION_PASSWORD` — password di accesso al cruscotto (consigliato come **Secret**)
+
+Le rewrites in `vercel.json` gestiscono il routing SPA.
+
+## Costi API (Anthropic)
+
+La **web search** consuma molti token (risultati iniettati nel contesto) e fa lievitare i costi. In questo progetto la ricerca web è usata **solo** nel caricamento iniziale (disagi oggi + prossimi 7 giorni); analisi del giorno, “Verifica data” e “Verifica tutte” usano solo la conoscenza del modello, per contenere i costi. Evitare refresh continui e uso ripetuto dei pulsanti “Verifica con AI”.
 
 ## Struttura
 

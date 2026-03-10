@@ -1,9 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { hasApiKey, callAnthropic } from './anthropic';
+import { getBody } from './parseBody';
+import { requireAuth } from '../lib/cookieAuth';
 
-const PROMPT = (today: string) => `Sei un assistente per agenzie di viaggio italiane. Oggi è ${today}.
+const PROMPT = (today: string) => `Sei un assistente per l'agenzia FiloSofia Viaggi (Giada Moramarco). Oggi è ${today}.
 
-Scrivi un briefing mattutino CONCISO (3-4 paragrafi) sullo stato dei trasporti italiani oggi, pensato per una responsabile di agenzia di viaggi. 
+Basandoti SOLO sulla tua conoscenza (non fare ricerche web), scrivi un briefing mattutino CONCISO (3-4 paragrafi) sullo stato dei trasporti italiani oggi, pensato per Giada e per FiloSofia Viaggi. 
 Usa HTML semplice con <p>, <strong>, e classi CSS: class="ok" per verde, class="warn" per giallo, class="danger" per rosso.
 Includi: 1) Situazione generale, 2) Eventuali scioperi o disagi noti, 3) Consigli pratici per i clienti, 4) Un consiglio su cosa comunicare ai clienti.
 Tono: professionale ma diretto. Massimo 150 parole totali.
@@ -14,17 +16,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!requireAuth(req, res)) return;
   if (!hasApiKey()) {
     return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
   }
   try {
-    const { today } = req.body as { today?: string };
+    const body = await getBody(req);
+    const { today } = body as { today?: string };
     if (!today || typeof today !== 'string') {
       return res.status(400).json({ error: 'Missing or invalid "today"' });
     }
     const { text } = await callAnthropic({
       max_tokens: 1000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: PROMPT(today) }],
     });
     const html = text.replace(/```html|```/g, '').trim();

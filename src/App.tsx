@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { fetchAlerts, fetchAnalysis } from './lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchAlerts, fetchAnalysis, verifyAuth } from './lib/api';
 import { formatDateIT } from './lib/dateUtils';
 import type { AlertData, FilterTipo, Mezzo, SavedWatch } from './types/alerts';
 import { ApiConfigBanner } from './components/ApiConfigBanner';
@@ -11,8 +11,13 @@ import { AiBox } from './components/AiBox';
 import { AlertListToday, AlertListUpcoming } from './components/AlertList';
 import { DateChecker } from './components/DateChecker';
 import { SavedWatches } from './components/SavedWatches';
+import { LoginScreen } from './components/LoginScreen';
 
 const SAVED_STORAGE_KEY = 'viaggioalert_saved';
+const REFRESH_COOLDOWN_SECONDS = 60;
+
+/** Evita doppio caricamento in React Strict Mode (useEffect eseguito due volte in dev). */
+let initialLoadStarted = false;
 
 function loadSavedWatches(): SavedWatch[] {
   try {
@@ -28,20 +33,24 @@ function saveSavedWatches(watches: SavedWatch[]) {
 }
 
 export default function App() {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
   const [alertData, setAlertData] = useState<AlertData | null>(null);
   const [aiContent, setAiContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('Pronto');
+  const [refreshCooldown, setRefreshCooldown] = useState(0);
   const [apiKeyConfigured, setApiKeyConfigured] = useState<boolean | null>(null);
   const [filter, setFilter] = useState<FilterTipo>('tutti');
   const [sectionMezzo, setSectionMezzo] = useState<Mezzo | null>(null);
   const [savedWatches, setSavedWatches] = useState<SavedWatch[]>(loadSavedWatches);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     setStatus('loading');
-    setStatusMessage('Recupero informazioni in corso...');
+    setStatusMessage('Aggiornamento in corso... Non premere Aggiorna.');
     setAiContent(null);
     const today = formatDateIT(new Date());
     try {
@@ -54,20 +63,70 @@ export default function App() {
       setStatus('idle');
       setApiKeyConfigured(true);
       setStatusMessage(`Ultimo aggiornamento: ${new Date().toLocaleTimeString('it-IT')}`);
+      setRefreshCooldown(REFRESH_COOLDOWN_SECONDS);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'AUTH_REQUIRED') {
+        setAuthenticated(false);
+        initialLoadStarted = false;
+        return;
+      }
       setStatus('error');
-      const isConfig = e instanceof Error && e.message === 'API_KEY_NOT_CONFIGURED';
+      const isConfig = msg === 'API_KEY_NOT_CONFIGURED';
       setApiKeyConfigured(isConfig ? false : null);
       setStatusMessage(isConfig ? 'Chiave API non configurata' : 'Errore nel caricamento. Riprova.');
       setAiContent(null);
+      setRefreshCooldown(30);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    verifyAuth().then((status) => {
+      if (cancelled) return;
+      setAuthChecked(true);
+      setAuthenticated(status.protected ? status.ok : true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!authChecked || !authenticated) return;
+    if (initialLoadStarted) return;
+    initialLoadStarted = true;
     loadAll();
-  }, [loadAll]);
+  }, [authChecked, authenticated, loadAll]);
+
+  useEffect(() => {
+    const handler = () => {
+      setAuthenticated(false);
+      initialLoadStarted = false;
+    };
+    window.addEventListener('auth-required', handler);
+    return () => window.removeEventListener('auth-required', handler);
+  }, []);
+
+  useEffect(() => {
+    if (refreshCooldown <= 0) return;
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    cooldownTimerRef.current = setInterval(() => {
+      setRefreshCooldown((s) => {
+        if (s <= 1) {
+          if (cooldownTimerRef.current) {
+            clearInterval(cooldownTimerRef.current);
+            cooldownTimerRef.current = null;
+          }
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => {
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    };
+  }, [refreshCooldown]);
 
   const handleSaveWatch = useCallback((watch: Omit<SavedWatch, 'saved'>) => {
     const newWatch: SavedWatch = { ...watch, saved: new Date().toISOString() };
@@ -94,10 +153,31 @@ export default function App() {
 
   return (
     <>
+      {!authChecked && (
+        <div className="login-screen" aria-live="polite">
+          <div className="login-card">
+            <p className="login-sub">Verifica accesso...</p>
+          </div>
+        </div>
+      )}
+      {authChecked && !authenticated && (
+        <LoginScreen onSuccess={() => setAuthenticated(true)} />
+      )}
+      {authChecked && authenticated && (
+    <>
       {apiKeyConfigured === false && <ApiConfigBanner />}
       <div className="container">
-        <Header onRefresh={loadAll} loading={loading} />
-        <StatusBar status={status} message={statusMessage} />
+        <Header
+          onRefresh={loadAll}
+          loading={loading}
+          refreshCooldown={refreshCooldown}
+        />
+        <StatusBar
+          status={status}
+          message={statusMessage}
+          refreshCooldown={refreshCooldown}
+          loading={loading}
+        />
         <SummaryCards
           data={alertData}
           loading={loading}
@@ -125,6 +205,8 @@ export default function App() {
           </div>
         </div>
       </div>
+    </>
+      )}
     </>
   );
 }

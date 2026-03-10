@@ -37,8 +37,21 @@ export function AlertItemOggi({ alert }: { alert: AlertOggi }) {
           {alert.titolo}
         </div>
         <div className="alert-desc">{alert.descrizione}</div>
-        {alert.fonte && (
-          <div className="alert-fonte">Fonte: {alert.fonte}</div>
+        {(alert.fonte_url || alert.fonte) && (
+          <div className="alert-fonte">
+            {alert.fonte_url ? (
+              <a
+                href={alert.fonte_url}
+                target="_blank"
+                rel="noreferrer"
+                className="alert-fonte-link"
+              >
+                {alert.fonte ? `Leggi su ${alert.fonte} ↗` : 'Leggi articolo ↗'}
+              </a>
+            ) : (
+              <>Fonte: {alert.fonte}</>
+            )}
+          </div>
         )}
       </div>
       <div className="alert-time">{alert.orario ?? ''}</div>
@@ -61,6 +74,22 @@ export function AlertItemProssimi({ alert }: { alert: AlertProssimi }) {
           {alert.titolo}
         </div>
         <div className="alert-desc">{alert.descrizione}</div>
+        {(alert.fonte_url || alert.fonte) && (
+          <div className="alert-fonte">
+            {alert.fonte_url ? (
+              <a
+                href={alert.fonte_url}
+                target="_blank"
+                rel="noreferrer"
+                className="alert-fonte-link"
+              >
+                {alert.fonte ? `Leggi su ${alert.fonte} ↗` : 'Leggi articolo ↗'}
+              </a>
+            ) : (
+              <>Fonte: {alert.fonte}</>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
