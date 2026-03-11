@@ -1,64 +1,20 @@
-# FiloSofia Viaggi — Cruscotto Disagi
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-Cruscotto per **FiloSofia Viaggi** (Giada Moramarco): monitoraggio disagi trasporti (treni, aerei, navi, bus) con analisi AI (Anthropic Claude).
+# Run and deploy your AI Studio app
 
-## Stack
+This contains everything you need to run your app locally.
 
-- **React 18** + **TypeScript**
-- **Vite** (build e dev server)
-- **API**: route serverless Vercel (`/api/*`) — chiave API e password sul server (Vercel Secrets / `.env.local`)
-- **Deploy**: Vercel
+View your app in AI Studio: https://ai.studio/apps/2eef9a8f-c299-4684-a9ea-7ee2f010bafd
 
-## Variabili d'ambiente
+## Run Locally
 
-### ANTHROPIC_API_KEY (obbligatoria per le API)
+**Prerequisites:**  Node.js
 
-- **Su Vercel**: **Project Settings → Environment Variables** (o **Secrets**) → aggiungi `ANTHROPIC_API_KEY` con valore `sk-ant-...`.
-- **In locale**: in **`.env.local`** (vedi `.env.example`):
-  ```bash
-  ANTHROPIC_API_KEY=sk-ant-api03-...
-  ```
 
-### PROTECTION_PASSWORD (opzionale — protezione accesso)
-
-Se impostata, l’app richiede la password prima di mostrare dati e usare le API.
-
-- **Su Vercel**: **Project Settings → Environment Variables** → **Add** → nome `PROTECTION_PASSWORD`, valore la password scelta → **Save** (consigliato come **Secret**). Dopo il deploy, aprendo il **sito** nel browser verrà chiesta la password; il **git push** non c’entra con questa password.
-- **In locale**: in `.env.local` aggiungi `PROTECTION_PASSWORD=tua_password`. Se non la imposti, in locale l’app è accessibile senza login.
-
-## Setup
-
-```bash
-npm install
-cp .env.example .env.local   # poi modifica .env.local e inserisci la chiave
-npx vercel dev               # sviluppo con API (frontend + serverless)
-```
-
-Apri l’URL indicato da `vercel dev` (es. [http://localhost:3000](http://localhost:3000)).
-
-Solo frontend (senza API): `npm run dev` → [http://localhost:5173](http://localhost:5173) — le chiamate AI non funzioneranno.
-
-## Build e deploy su Vercel
-
-```bash
-npm run build
-```
-
-Collega il repo a Vercel; imposta in **Settings → Environment Variables** (o **Secrets**):
-
-- `ANTHROPIC_API_KEY` — chiave API Anthropic
-- `PROTECTION_PASSWORD` — password di accesso al cruscotto (consigliato come **Secret**)
-
-Le rewrites in `vercel.json` gestiscono il routing SPA.
-
-## Costi API (Anthropic)
-
-La **web search** consuma molti token (risultati iniettati nel contesto) e fa lievitare i costi. In questo progetto la ricerca web è usata **solo** nel caricamento iniziale (disagi oggi + prossimi 7 giorni); analisi del giorno, “Verifica data” e “Verifica tutte” usano solo la conoscenza del modello, per contenere i costi. Evitare refresh continui e uso ripetuto dei pulsanti “Verifica con AI”.
-
-## Struttura
-
-- `api/` — route serverless (alerts, analysis, check-date, check-all-saved) che usano `ANTHROPIC_API_KEY`
-- `src/lib/api.ts` — client che chiama `/api/*`
-- `src/lib/dateUtils.ts` — date in formato italiano (gg/mm/aaaa)
-- `src/components/` — Header, StatusBar, SummaryCards, FilterBar, AiBox, AlertList, DateChecker, SavedWatches, ApiConfigBanner
-- `index-legacy.html` — versione monolitica originale (reference)
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

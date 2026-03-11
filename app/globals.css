@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@layer base {
+  .prose {
+    @apply text-stone-700 leading-relaxed;
+  }
+  .prose h1, .prose h2, .prose h3 {
+    @apply text-stone-900 font-serif italic mt-8 mb-4;
+  }
+  .prose p {
+    @apply mb-4;
+  }
+  .prose ul {
+    @apply list-disc list-inside mb-4 space-y-2;
+  }
+  .prose strong {
+    @apply text-stone-900 font-semibold;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+  .animate-shake {
+    animation: shake 0.2s ease-in-out 0s 2;
+  }
+}
+
+@media print {
+  body {
+    background-color: white !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .max-w-6xl {
+    max-width: 100% !important;
+  }
+  section {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .bg-stone-50 {
+    background-color: transparent !important;
+  }
+}
